@@ -470,7 +470,7 @@
   function notifyJotform() {
     try {
       var value = JSON.stringify(locations.map(function(l) {
-        return { nr: l.id, irsz: l.irsz, varos: l.varos, utca: l.utca, hazszam: l.hazszam };
+        return { nr: l.id, irsz: l.irsz, varos: l.varos, utca: l.utca, hazszam: l.hazszam, lat: l.lat, lng: l.lng };
       }));
       if (typeof JFCustomWidget !== 'undefined') {
         JFCustomWidget.setValue(value);
@@ -481,7 +481,7 @@
   if (typeof JFCustomWidget !== 'undefined') {
     JFCustomWidget.subscribe('submit', function() {
       var value = JSON.stringify(locations.map(function(l) {
-        return { nr: l.id, irsz: l.irsz, varos: l.varos, utca: l.utca, hazszam: l.hazszam };
+        return { nr: l.id, irsz: l.irsz, varos: l.varos, utca: l.utca, hazszam: l.hazszam, lat: l.lat, lng: l.lng };
       }));
       JFCustomWidget.sendSubmit({ valid: true, value: value });
     });
