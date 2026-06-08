@@ -27,7 +27,6 @@
     #widget-wrapper {
       display: flex;
       flex-direction: column;
-      gap: 0;
       background: #fff;
       border: 1px solid #dce1e8;
       border-radius: 8px;
@@ -120,9 +119,7 @@
       font-weight: 700;
     }
 
-    #table-wrapper {
-      overflow-x: auto;
-    }
+    #table-wrapper { overflow-x: auto; }
 
     table {
       width: 100%;
@@ -130,9 +127,7 @@
       min-width: 460px;
     }
 
-    thead tr {
-      background: #f7f9fc;
-    }
+    thead tr { background: #f7f9fc; }
 
     thead th {
       padding: 9px 10px;
@@ -151,13 +146,12 @@
     thead th:nth-child(3) { width: 160px; }
     thead th:nth-child(4) { width: 180px; }
     thead th:nth-child(5) { width: 90px; }
-    thead th:last-child  { width: 36px; }
+    thead th:last-child   { width: 36px; }
 
     tbody tr {
       transition: background 0.15s;
       border-bottom: 1px solid #eef1f5;
     }
-
     tbody tr:nth-child(even) { background: #f9fbfd; }
     tbody tr:hover { background: #eef4ff; }
 
@@ -173,7 +167,6 @@
       font-size: 13px;
     }
 
-    /* Editable cells */
     .editable {
       width: 100%;
       border: 1px solid transparent;
@@ -186,24 +179,20 @@
       transition: border-color 0.15s, background 0.15s;
       outline: none;
     }
-
     .editable:focus {
       border-color: #3a7bd5;
       background: #fff;
       box-shadow: 0 0 0 2px rgba(58,123,213,0.15);
     }
-
     .editable.missing {
       background: #fffbea;
       border-color: #f0c040;
     }
-
     .editable.missing:focus {
       border-color: #e6a800;
       background: #fffdf0;
     }
 
-    /* Delete button */
     .btn-delete {
       background: none;
       border: none;
@@ -218,13 +207,8 @@
       align-items: center;
       justify-content: center;
     }
+    .btn-delete:hover { color: #e53e3e; background: #fff0f0; }
 
-    .btn-delete:hover {
-      color: #e53e3e;
-      background: #fff0f0;
-    }
-
-    /* Empty state */
     #empty-state {
       text-align: center;
       padding: 22px 0 18px;
@@ -232,14 +216,12 @@
       font-size: 12px;
       display: none;
     }
-
     #empty-state svg {
       display: block;
       margin: 0 auto 8px;
       opacity: 0.35;
     }
 
-    /* Marker icon style */
     .marker-label {
       background: #3a7bd5;
       color: #fff;
@@ -254,6 +236,18 @@
       border: 2px solid #fff;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
+
+    /* Sync status indicator */
+    #sync-status {
+      font-size: 11px;
+      color: #27ae60;
+      padding: 4px 14px 6px;
+      background: #f0f4f9;
+      border-top: 1px solid #dce1e8;
+      min-height: 22px;
+      transition: opacity 0.4s;
+    }
+    #sync-status.hidden { opacity: 0; }
   </style>
 </head>
 <body>
@@ -298,14 +292,16 @@
         Még nem adott meg helyszínt. Kattintson a térképre!
       </div>
     </div>
+    <div id="sync-status" class="hidden"></div>
   </div>
 
 </div>
 
 <script>
   // ── State ──────────────────────────────────────────────────────────────────
-  var locations = [];   // { id, lat, lng, irsz, varos, utca, hazszam, marker }
+  var locations = [];
   var nextId = 1;
+  var formFields = {};   // will be populated by JFCustomWidget.getFormFields()
 
   // ── Map init ───────────────────────────────────────────────────────────────
   var map = L.map('map', { zoomControl: true }).setView([47.1625, 19.5034], 7);
@@ -315,9 +311,16 @@
     maxZoom: 19
   }).addTo(map);
 
-  // Fix Leaflet container size after iframe render
   setTimeout(function() { map.invalidateSize(); }, 400);
   setTimeout(function() { map.invalidateSize(); }, 1200);
+
+  // ── Resize iframe to fit content ───────────────────────────────────────────
+  function resizeFrame() {
+    var h = document.getElementById('widget-wrapper').offsetHeight + 20;
+    if (typeof JFCustomWidget !== 'undefined') {
+      JFCustomWidget.requestFrameResize({ height: h });
+    }
+  }
 
   // ── Marker icon factory ───────────────────────────────────────────────────
   function makeIcon(num) {
@@ -330,13 +333,107 @@
     });
   }
 
+  // ── Build data payloads ────────────────────────────────────────────────────
+  function buildJSON() {
+    return JSON.stringify(locations.map(function(l) {
+      return {
+        nr:      l.id,
+        irsz:    l.irsz,
+        varos:   l.varos,
+        utca:    l.utca,
+        hazszam: l.hazszam,
+        lat:     l.lat,
+        lng:     l.lng
+      };
+    }));
+  }
+
+  // Human-readable text table for email notifications / Jotform submission view
+  function buildTextTable() {
+    if (locations.length === 0) return '';
+    var lines = ['#  | IRSZ | Város | Utca | Házszám | Lat | Lng'];
+    lines.push('---|------|-------|------|---------|-----|----');
+    locations.forEach(function(l) {
+      lines.push(
+        l.id + ' | ' +
+        (l.irsz    || '-') + ' | ' +
+        (l.varos   || '-') + ' | ' +
+        (l.utca    || '-') + ' | ' +
+        (l.hazszam || '-') + ' | ' +
+        l.lat.toFixed(5)   + ' | ' +
+        l.lng.toFixed(5)
+      );
+    });
+    return lines.join('\n');
+  }
+
+  // ── Populate Jotform hidden fields by field name ───────────────────────────
+  function populateHiddenFields() {
+    try {
+      var jsonVal  = buildJSON();
+      var tableVal = buildTextTable();
+
+      // Method 1: postMessage to parent (works in live mode iframes)
+      var msg = {
+        type: 'updateFormFields',
+        fields: {
+          locations_json:  jsonVal,
+          locations_table: tableVal
+        }
+      };
+      window.parent.postMessage(JSON.stringify(msg), '*');
+
+      // Method 2: JFCustomWidget field setter (if API exposes form fields)
+      if (typeof JFCustomWidget !== 'undefined' &&
+          typeof JFCustomWidget.setFieldValue === 'function') {
+        JFCustomWidget.setFieldValue('locations_json',  jsonVal);
+        JFCustomWidget.setFieldValue('locations_table', tableVal);
+      }
+
+      // Method 3: Direct DOM targeting (fallback for same-origin preview)
+      try {
+        var doc = window.parent.document;
+        var inputs = doc.querySelectorAll('input, textarea');
+        inputs.forEach(function(inp) {
+          var name = inp.name || inp.id || '';
+          if (name.indexOf('locations_json') !== -1)  inp.value = jsonVal;
+          if (name.indexOf('locations_table') !== -1) inp.value = tableVal;
+        });
+      } catch(e) { /* cross-origin — expected in live mode */ }
+
+    } catch(e) {
+      console.warn('populateHiddenFields error:', e);
+    }
+  }
+
+  // ── Show sync indicator ────────────────────────────────────────────────────
+  var syncTimer = null;
+  function showSync() {
+    var el = document.getElementById('sync-status');
+    el.textContent = '✓ ' + locations.length + ' helyszín mentve';
+    el.classList.remove('hidden');
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function() { el.classList.add('hidden'); }, 2500);
+  }
+
+  // ── Notify Jotform: widget value + hidden fields ───────────────────────────
+  function notifyJotform() {
+    try {
+      var jsonVal = buildJSON();
+      if (typeof JFCustomWidget !== 'undefined') {
+        JFCustomWidget.setValue(jsonVal);
+      }
+      populateHiddenFields();
+      showSync();
+    } catch(e) {}
+  }
+
   // ── Map click → geocode → add row ─────────────────────────────────────────
   map.on('click', function(e) {
     var lat = e.latlng.lat;
     var lng = e.latlng.lng;
     var id  = nextId++;
 
-    // Show loading
     document.getElementById('loading-overlay').classList.add('active');
 
     var url = 'https://nominatim.openstreetmap.org/reverse?format=json'
@@ -346,27 +443,33 @@
     fetch(url, { headers: { 'Accept-Language': 'hu' } })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        var a = data.address || {};
-        var irsz    = a.postcode   || '';
+        var a       = data.address || {};
+        var irsz    = a.postcode    || '';
         var varos   = a.city || a.town || a.village || a.municipality || a.county || '';
-        var utca    = a.road       || '';
+        var utca    = a.road        || '';
         var hazszam = a.house_number || '';
 
         var marker = L.marker([lat, lng], { icon: makeIcon(id) })
           .addTo(map)
-          .bindPopup('<b>' + id + '.</b> ' + (varos || '') + (utca ? ', ' + utca : '') + (hazszam ? ' ' + hazszam : ''));
+          .bindPopup(
+            '<b>' + id + '.</b> ' +
+            (varos || '') +
+            (utca    ? ', ' + utca    : '') +
+            (hazszam ? ' ' + hazszam  : '')
+          );
 
-        var entry = { id: id, lat: lat, lng: lng, irsz: irsz, varos: varos, utca: utca, hazszam: hazszam, marker: marker };
-        locations.push(entry);
+        locations.push({ id: id, lat: lat, lng: lng,
+                         irsz: irsz, varos: varos, utca: utca,
+                         hazszam: hazszam, marker: marker });
         renderTable();
         notifyJotform();
       })
       .catch(function(err) {
         console.error('Geocoding error:', err);
-        // Add with empty fields on error
         var marker = L.marker([lat, lng], { icon: makeIcon(id) }).addTo(map);
-        var entry = { id: id, lat: lat, lng: lng, irsz: '', varos: '', utca: '', hazszam: '', marker: marker };
-        locations.push(entry);
+        locations.push({ id: id, lat: lat, lng: lng,
+                         irsz: '', varos: '', utca: '',
+                         hazszam: '', marker: marker });
         renderTable();
         notifyJotform();
       })
@@ -386,6 +489,7 @@
 
     if (locations.length === 0) {
       empty.style.display = 'block';
+      resizeFrame();
       return;
     }
     empty.style.display = 'none';
@@ -394,12 +498,10 @@
       var rowNum = idx + 1;
       var tr = document.createElement('tr');
 
-      // # cell
       var tdNum = document.createElement('td');
       tdNum.textContent = rowNum;
       tr.appendChild(tdNum);
 
-      // Editable cells: irsz, varos, utca, hazszam
       var fields = [
         { key: 'irsz',    val: loc.irsz    },
         { key: 'varos',   val: loc.varos   },
@@ -408,12 +510,12 @@
       ];
 
       fields.forEach(function(f) {
-        var td = document.createElement('td');
+        var td    = document.createElement('td');
         var input = document.createElement('input');
-        input.type = 'text';
+        input.type      = 'text';
         input.className = 'editable' + (f.key === 'hazszam' && !f.val ? ' missing' : '');
-        input.value = f.val;
-        input.setAttribute('data-id', loc.id);
+        input.value     = f.val;
+        input.setAttribute('data-id',    loc.id);
         input.setAttribute('data-field', f.key);
 
         input.addEventListener('input', function() {
@@ -421,11 +523,7 @@
           if (locObj) {
             locObj[f.key] = this.value;
             if (f.key === 'hazszam') {
-              if (this.value) {
-                this.classList.remove('missing');
-              } else {
-                this.classList.add('missing');
-              }
+              this.classList.toggle('missing', !this.value);
             }
             notifyJotform();
           }
@@ -435,11 +533,10 @@
         tr.appendChild(td);
       });
 
-      // Delete button
       var tdDel = document.createElement('td');
-      var btn = document.createElement('button');
+      var btn   = document.createElement('button');
       btn.className = 'btn-delete';
-      btn.title = 'Törlés';
+      btn.title     = 'Törlés';
       btn.innerHTML = '✕';
       btn.setAttribute('data-id', loc.id);
 
@@ -449,7 +546,6 @@
         if (idx2 !== -1) {
           map.removeLayer(locations[idx2].marker);
           locations.splice(idx2, 1);
-          // Re-assign IDs and update marker icons
           locations.forEach(function(l, i) {
             l.id = i + 1;
             l.marker.setIcon(makeIcon(i + 1));
@@ -464,36 +560,34 @@
       tr.appendChild(tdDel);
       tbody.appendChild(tr);
     });
+
+    resizeFrame();
   }
 
-  // ── Jotform integration ───────────────────────────────────────────────────
-  function notifyJotform() {
-    try {
-      var value = JSON.stringify(locations.map(function(l) {
-        return { nr: l.id, irsz: l.irsz, varos: l.varos, utca: l.utca, hazszam: l.hazszam, lat: l.lat, lng: l.lng };
-      }));
-      if (typeof JFCustomWidget !== 'undefined') {
-        JFCustomWidget.setValue(value);
-      }
-    } catch(e) {}
-  }
-
+  // ── Jotform lifecycle ─────────────────────────────────────────────────────
   if (typeof JFCustomWidget !== 'undefined') {
-    JFCustomWidget.subscribe('submit', function() {
-      var value = JSON.stringify(locations.map(function(l) {
-        return { nr: l.id, irsz: l.irsz, varos: l.varos, utca: l.utca, hazszam: l.hazszam, lat: l.lat, lng: l.lng };
-      }));
-      JFCustomWidget.sendSubmit({ valid: true, value: value });
-    });
 
     JFCustomWidget.subscribe('ready', function() {
-      setTimeout(function() { map.invalidateSize(); }, 300);
+      setTimeout(function() {
+        map.invalidateSize();
+        resizeFrame();
+      }, 300);
+    });
+
+    JFCustomWidget.subscribe('submit', function() {
+      populateHiddenFields();
+      JFCustomWidget.sendSubmit({
+        valid: true,
+        value: buildJSON()
+      });
     });
   }
 
-  // Final safety invalidate
   window.addEventListener('load', function() {
-    setTimeout(function() { map.invalidateSize(); }, 500);
+    setTimeout(function() {
+      map.invalidateSize();
+      resizeFrame();
+    }, 500);
   });
 </script>
 </body>
