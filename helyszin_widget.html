@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Helyszín Választó</title>
+
+  <!-- Jotform Widget API -->
+  <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 13px;
+      background: #f4f6f9;
+      color: #2c3e50;
+      padding: 0;
+    }
+
+    #widget-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      background: #fff;
+      border: 1px solid #dce1e8;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+
+    /* MAP */
+    #map-container {
+      position: relative;
+      width: 100%;
+      height: 420px;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    #map-hint {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.92);
+      border: 1px solid #c8d0da;
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+      color: #555;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 1000;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    }
+
+    /* LOADING OVERLAY */
+    #loading-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255,255,255,0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      font-size: 13px;
+      color: #555;
+      gap: 8px;
+    }
+    #loading-overlay.active { display: flex; }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #3a7bd5;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* TABLE SECTION */
+    #table-section {
+      padding: 0;
+      border-top: 2px solid #e8ecf1;
+    }
+
+    #table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px 8px;
+      background: #f0f4f9;
+      border-bottom: 1px solid #dce1e8;
+    }
+
+    #table-header span {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7a8d;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    #location-count {
+      background: #3a7bd5;
+      color: #fff;
+      border-radius: 10px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    #table-wrapper {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 460px;
+    }
+
+    thead tr {
+      background: #f7f9fc;
+    }
+
+    thead th {
+      padding: 9px 10px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: #8a96a3;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid #dce1e8;
+      white-space: nowrap;
+    }
+
+    thead th:first-child { width: 38px; text-align: center; }
+    thead th:nth-child(2) { width: 70px; }
+    thead th:nth-child(3) { width: 160px; }
+    thead th:nth-child(4) { width: 180px; }
+    thead th:nth-child(5) { width: 90px; }
+    thead th:last-child  { width: 36px; }
+
+    tbody tr {
+      transition: background 0.15s;
+      border-bottom: 1px solid #eef1f5;
+    }
+
+    tbody tr:nth-child(even) { background: #f9fbfd; }
+    tbody tr:hover { background: #eef4ff; }
+
+    tbody td {
+      padding: 6px 8px;
+      vertical-align: middle;
+    }
+
+    tbody td:first-child {
+      text-align: center;
+      font-weight: 700;
+      color: #3a7bd5;
+      font-size: 13px;
+    }
+
+    /* Editable cells */
+    .editable {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: #2c3e50;
+      background: transparent;
+      transition: border-color 0.15s, background 0.15s;
+      outline: none;
+    }
+
+    .editable:focus {
+      border-color: #3a7bd5;
+      background: #fff;
+      box-shadow: 0 0 0 2px rgba(58,123,213,0.15);
+    }
+
+    .editable.missing {
+      background: #fffbea;
+      border-color: #f0c040;
+    }
+
+    .editable.missing:focus {
+      border-color: #e6a800;
+      background: #fffdf0;
+    }
+
+    /* Delete button */
+    .btn-delete {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #c0c8d0;
+      font-size: 16px;
+      line-height: 1;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-delete:hover {
+      color: #e53e3e;
+      background: #fff0f0;
+    }
+
+    /* Empty state */
+    #empty-state {
+      text-align: center;
+      padding: 22px 0 18px;
+      color: #aab2bc;
+      font-size: 12px;
+      display: none;
+    }
+
+    #empty-state svg {
+      display: block;
+      margin: 0 auto 8px;
+      opacity: 0.35;
+    }
+
+    /* Marker icon style */
+    .marker-label {
+      background: #3a7bd5;
+      color: #fff;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+
+<div id="widget-wrapper">
+
+  <!-- MAP -->
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="map-hint">🖱️ Kattintson a térképre helyszín hozzáadásához</div>
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+      <span>Geocoding…</span>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div id="table-section">
+    <div id="table-header">
+      <span>Kijelölt helyszínek</span>
+      <span id="location-count">0</span>
+    </div>
+    <div id="table-wrapper">
+      <table id="location-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>IRSZ</th>
+            <th>Város</th>
+            <th>Utca</th>
+            <th>Házszám</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+      <div id="empty-state">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle cx="12" cy="9" r="2.5"/>
+        </svg>
+        Még nem adott meg helyszínt. Kattintson a térképre!
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  var locations = [];   // { id, lat, lng, irsz, varos, utca, hazszam, marker }
+  var nextId = 1;
+
+  // ── Map init ───────────────────────────────────────────────────────────────
+  var map = L.map('map', { zoomControl: true }).setView([47.1625, 19.5034], 7);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Fix Leaflet container size after iframe render
+  setTimeout(function() { map.invalidateSize(); }, 400);
+  setTimeout(function() { map.invalidateSize(); }, 1200);
+
+  // ── Marker icon factory ───────────────────────────────────────────────────
+  function makeIcon(num) {
+    return L.divIcon({
+      className: '',
+      html: '<div class="marker-label">' + num + '</div>',
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+      popupAnchor: [0, -14]
+    });
+  }
+
+  // ── Map click → geocode → add row ─────────────────────────────────────────
+  map.on('click', function(e) {
+    var lat = e.latlng.lat;
+    var lng = e.latlng.lng;
+    var id  = nextId++;
+
+    // Show loading
+    document.getElementById('loading-overlay').classList.add('active');
+
+    var url = 'https://nominatim.openstreetmap.org/reverse?format=json'
+            + '&lat=' + lat + '&lon=' + lng
+            + '&addressdetails=1&email=widget@example.com';
+
+    fetch(url, { headers: { 'Accept-Language': 'hu' } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var a = data.address || {};
+        var irsz    = a.postcode   || '';
+        var varos   = a.city || a.town || a.village || a.municipality || a.county || '';
+        var utca    = a.road       || '';
+        var hazszam = a.house_number || '';
+
+        var marker = L.marker([lat, lng], { icon: makeIcon(id) })
+          .addTo(map)
+          .bindPopup('<b>' + id + '.</b> ' + (varos || '') + (utca ? ', ' + utca : '') + (hazszam ? ' ' + hazszam : ''));
+
+        var entry = { id: id, lat: lat, lng: lng, irsz: irsz, varos: varos, utca: utca, hazszam: hazszam, marker: marker };
+        locations.push(entry);
+        renderTable();
+        notifyJotform();
+      })
+      .catch(function(err) {
+        console.error('Geocoding error:', err);
+        // Add with empty fields on error
+        var marker = L.marker([lat, lng], { icon: makeIcon(id) }).addTo(map);
+        var entry = { id: id, lat: lat, lng: lng, irsz: '', varos: '', utca: '', hazszam: '', marker: marker };
+        locations.push(entry);
+        renderTable();
+        notifyJotform();
+      })
+      .finally(function() {
+        document.getElementById('loading-overlay').classList.remove('active');
+      });
+  });
+
+  // ── Render table ──────────────────────────────────────────────────────────
+  function renderTable() {
+    var tbody = document.getElementById('table-body');
+    var empty = document.getElementById('empty-state');
+    var count = document.getElementById('location-count');
+
+    tbody.innerHTML = '';
+    count.textContent = locations.length;
+
+    if (locations.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    locations.forEach(function(loc, idx) {
+      var rowNum = idx + 1;
+      var tr = document.createElement('tr');
+
+      // # cell
+      var tdNum = document.createElement('td');
+      tdNum.textContent = rowNum;
+      tr.appendChild(tdNum);
+
+      // Editable cells: irsz, varos, utca, hazszam
+      var fields = [
+        { key: 'irsz',    val: loc.irsz    },
+        { key: 'varos',   val: loc.varos   },
+        { key: 'utca',    val: loc.utca    },
+        { key: 'hazszam', val: loc.hazszam }
+      ];
+
+      fields.forEach(function(f) {
+        var td = document.createElement('td');
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'editable' + (f.key === 'hazszam' && !f.val ? ' missing' : '');
+        input.value = f.val;
+        input.setAttribute('data-id', loc.id);
+        input.setAttribute('data-field', f.key);
+
+        input.addEventListener('input', function() {
+          var locObj = locations.find(function(l) { return l.id === loc.id; });
+          if (locObj) {
+            locObj[f.key] = this.value;
+            if (f.key === 'hazszam') {
+              if (this.value) {
+                this.classList.remove('missing');
+              } else {
+                this.classList.add('missing');
+              }
+            }
+            notifyJotform();
+          }
+        });
+
+        td.appendChild(input);
+        tr.appendChild(td);
+      });
+
+      // Delete button
+      var tdDel = document.createElement('td');
+      var btn = document.createElement('button');
+      btn.className = 'btn-delete';
+      btn.title = 'Törlés';
+      btn.innerHTML = '✕';
+      btn.setAttribute('data-id', loc.id);
+
+      btn.addEventListener('click', function() {
+        var delId = parseInt(this.getAttribute('data-id'));
+        var idx2  = locations.findIndex(function(l) { return l.id === delId; });
+        if (idx2 !== -1) {
+          map.removeLayer(locations[idx2].marker);
+          locations.splice(idx2, 1);
+          // Re-assign IDs and update marker icons
+          locations.forEach(function(l, i) {
+            l.id = i + 1;
+            l.marker.setIcon(makeIcon(i + 1));
+          });
+          nextId = locations.length + 1;
+          renderTable();
+          notifyJotform();
+        }
+      });
+
+      tdDel.appendChild(btn);
+      tr.appendChild(tdDel);
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ── Jotform integration ───────────────────────────────────────────────────
+  function notifyJotform() {
+    try {
+      var value = JSON.stringify(locations.map(function(l) {
+        return { nr: l.id, irsz: l.irsz, varos: l.varos, utca: l.utca, hazszam: l.hazszam };
+      }));
+      if (typeof JFCustomWidget !== 'undefined') {
+        JFCustomWidget.setValue(value);
+      }
+    } catch(e) {}
+  }
+
+  if (typeof JFCustomWidget !== 'undefined') {
+    JFCustomWidget.subscribe('submit', function() {
+      var value = JSON.stringify(locations.map(function(l) {
+        return { nr: l.id, irsz: l.irsz, varos: l.varos, utca: l.utca, hazszam: l.hazszam };
+      }));
+      JFCustomWidget.sendSubmit({ valid: true, value: value });
+    });
+
+    JFCustomWidget.subscribe('ready', function() {
+      setTimeout(function() { map.invalidateSize(); }, 300);
+    });
+  }
+
+  // Final safety invalidate
+  window.addEventListener('load', function() {
+    setTimeout(function() { map.invalidateSize(); }, 500);
+  });
+</script>
+</body>
+</html>
