@@ -5,23 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Helyszín Választó</title>
 
-  <!-- Jotform Widget API - REQUIRED for proper widget registration -->
   <script src="https://js.jotform.com/JotFormCustomWidget.min.js"></script>
-
-  <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       font-size: 13px;
-      background: #ffffff;
+      background: #fff;
       color: #2c3e50;
     }
-
     #widget-wrapper {
       display: flex;
       flex-direction: column;
@@ -31,46 +26,31 @@
       overflow: hidden;
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
     }
-
-    /* MAP */
-    #map-container {
-      position: relative;
-      width: 100%;
-      height: 420px;
-    }
+    #map-container { position: relative; width: 100%; height: 420px; }
     #map { width: 100%; height: 100%; }
-
     #map-hint {
       position: absolute;
-      bottom: 10px;
-      left: 50%;
+      bottom: 10px; left: 50%;
       transform: translateX(-50%);
       background: rgba(255,255,255,0.92);
       border: 1px solid #c8d0da;
       border-radius: 20px;
       padding: 5px 14px;
-      font-size: 12px;
-      color: #555;
+      font-size: 12px; color: #555;
       pointer-events: none;
       white-space: nowrap;
       z-index: 1000;
       box-shadow: 0 1px 4px rgba(0,0,0,0.12);
     }
-
     #loading-overlay {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(255,255,255,0.65);
-      display: none;
-      align-items: center;
+      display: none; align-items: center;
       justify-content: center;
-      z-index: 2000;
-      font-size: 13px;
-      color: #555;
-      gap: 8px;
+      z-index: 2000; font-size: 13px; color: #555; gap: 8px;
     }
     #loading-overlay.active { display: flex; }
-
     .spinner {
       width: 18px; height: 18px;
       border: 3px solid #e0e0e0;
@@ -79,49 +59,31 @@
       animation: spin 0.7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* TABLE SECTION */
     #table-section { border-top: 2px solid #e8ecf1; }
-
     #table-header {
-      display: flex;
-      align-items: center;
+      display: flex; align-items: center;
       justify-content: space-between;
       padding: 10px 14px 8px;
       background: #f0f4f9;
       border-bottom: 1px solid #dce1e8;
     }
     #table-header span {
-      font-size: 12px;
-      font-weight: 600;
-      color: #6b7a8d;
-      text-transform: uppercase;
+      font-size: 12px; font-weight: 600;
+      color: #6b7a8d; text-transform: uppercase;
       letter-spacing: 0.05em;
     }
     #location-count {
-      background: #3a7bd5;
-      color: #fff;
-      border-radius: 10px;
-      padding: 2px 8px;
-      font-size: 11px;
-      font-weight: 700;
+      background: #3a7bd5; color: #fff;
+      border-radius: 10px; padding: 2px 8px;
+      font-size: 11px; font-weight: 700;
     }
-
     #table-wrapper { overflow-x: auto; }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 460px;
-    }
+    table { width: 100%; border-collapse: collapse; min-width: 460px; }
     thead tr { background: #f7f9fc; }
     thead th {
-      padding: 9px 10px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 700;
-      color: #8a96a3;
-      text-transform: uppercase;
+      padding: 9px 10px; text-align: left;
+      font-size: 11px; font-weight: 700;
+      color: #8a96a3; text-transform: uppercase;
       letter-spacing: 0.06em;
       border-bottom: 1px solid #dce1e8;
       white-space: nowrap;
@@ -132,92 +94,50 @@
     thead th:nth-child(4) { width: 180px; }
     thead th:nth-child(5) { width: 90px; }
     thead th:last-child   { width: 36px; }
-
-    tbody tr {
-      transition: background 0.15s;
-      border-bottom: 1px solid #eef1f5;
-    }
+    tbody tr { transition: background 0.15s; border-bottom: 1px solid #eef1f5; }
     tbody tr:nth-child(even) { background: #f9fbfd; }
     tbody tr:hover { background: #eef4ff; }
     tbody td { padding: 6px 8px; vertical-align: middle; }
-    tbody td:first-child {
-      text-align: center;
-      font-weight: 700;
-      color: #3a7bd5;
-      font-size: 13px;
-    }
-
+    tbody td:first-child { text-align: center; font-weight: 700; color: #3a7bd5; font-size: 13px; }
     .editable {
-      width: 100%;
-      border: 1px solid transparent;
-      border-radius: 4px;
-      padding: 4px 6px;
-      font-size: 13px;
-      font-family: inherit;
-      color: #2c3e50;
-      background: transparent;
+      width: 100%; border: 1px solid transparent;
+      border-radius: 4px; padding: 4px 6px;
+      font-size: 13px; font-family: inherit;
+      color: #2c3e50; background: transparent;
       transition: border-color 0.15s, background 0.15s;
       outline: none;
     }
     .editable:focus {
-      border-color: #3a7bd5;
-      background: #fff;
+      border-color: #3a7bd5; background: #fff;
       box-shadow: 0 0 0 2px rgba(58,123,213,0.15);
     }
-    .editable.missing {
-      background: #fffbea;
-      border-color: #f0c040;
-    }
-    .editable.missing:focus {
-      border-color: #e6a800;
-      background: #fffdf0;
-    }
-
+    .editable.missing { background: #fffbea; border-color: #f0c040; }
+    .editable.missing:focus { border-color: #e6a800; background: #fffdf0; }
     .btn-delete {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: #c0c8d0;
-      font-size: 16px;
-      line-height: 1;
-      padding: 4px 6px;
-      border-radius: 4px;
+      background: none; border: none; cursor: pointer;
+      color: #c0c8d0; font-size: 16px; line-height: 1;
+      padding: 4px 6px; border-radius: 4px;
       transition: color 0.15s, background 0.15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items: center; justify-content: center;
     }
     .btn-delete:hover { color: #e53e3e; background: #fff0f0; }
-
     #empty-state {
-      text-align: center;
-      padding: 22px 0 18px;
-      color: #aab2bc;
-      font-size: 12px;
+      text-align: center; padding: 22px 0 18px;
+      color: #aab2bc; font-size: 12px;
     }
     #empty-state svg { display: block; margin: 0 auto 8px; opacity: 0.35; }
-
     .marker-label {
-      background: #3a7bd5;
-      color: #fff;
-      border-radius: 50%;
-      width: 26px; height: 26px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 700;
+      background: #3a7bd5; color: #fff;
+      border-radius: 50%; width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
       border: 2px solid #fff;
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
-
     #sync-status {
-      font-size: 11px;
-      color: #27ae60;
-      padding: 5px 14px 6px;
-      background: #f0f4f9;
-      border-top: 1px solid #dce1e8;
-      min-height: 24px;
+      font-size: 11px; color: #27ae60;
+      padding: 5px 14px 6px; background: #f0f4f9;
+      border-top: 1px solid #dce1e8; min-height: 24px;
       transition: opacity 0.4s;
     }
     #sync-status.hidden { opacity: 0; }
@@ -225,7 +145,6 @@
 </head>
 <body>
 <div id="widget-wrapper">
-
   <div id="map-container">
     <div id="map"></div>
     <div id="map-hint">🖱️ Kattintson a térképre helyszín hozzáadásához</div>
@@ -234,49 +153,35 @@
       <span>Geocoding…</span>
     </div>
   </div>
-
   <div id="table-section">
     <div id="table-header">
       <span>Kijelölt helyszínek</span>
       <span id="location-count">0</span>
     </div>
     <div id="table-wrapper">
-      <table id="location-table">
+      <table>
         <thead>
           <tr>
-            <th>#</th>
-            <th>IRSZ</th>
-            <th>Város</th>
-            <th>Utca</th>
-            <th>Házszám</th>
-            <th></th>
+            <th>#</th><th>IRSZ</th><th>Város</th>
+            <th>Utca</th><th>Házszám</th><th></th>
           </tr>
         </thead>
-        <tbody id="table-body">
-          <tr id="empty-row">
-            <td colspan="6">
-              <div id="empty-state">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-                  <circle cx="12" cy="9" r="2.5"/>
-                </svg>
-                Még nem adott meg helyszínt. Kattintson a térképre!
-              </div>
-            </td>
-          </tr>
-        </tbody>
+        <tbody id="table-body"></tbody>
       </table>
     </div>
     <div id="sync-status" class="hidden"></div>
   </div>
-
 </div>
 
 <script>
-  // ── State ──────────────────────────────────────────────────────────────────
   var locations = [];
-  var nextId    = 1;
-  var widgetReady = false;
+  var nextId = 1;
+
+  // ── The target Jotform field that stores our data ───────────────────────────
+  // This is the field on your form with Unique Name "irjBe97" / ID "input_97"
+  // We write into it via every method available.
+  var TARGET_FIELD_NAME = 'irjBe97';
+  var TARGET_FIELD_ID   = 'input_97';
 
   // ── Map ────────────────────────────────────────────────────────────────────
   var map = L.map('map', { zoomControl: true }).setView([47.1625, 19.5034], 7);
@@ -284,11 +189,9 @@
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19
   }).addTo(map);
-
   setTimeout(function(){ map.invalidateSize(); }, 400);
   setTimeout(function(){ map.invalidateSize(); }, 1500);
 
-  // ── Resize iframe ──────────────────────────────────────────────────────────
   function resizeFrame() {
     var h = document.getElementById('widget-wrapper').offsetHeight + 20;
     if (typeof JFCustomWidget !== 'undefined') {
@@ -296,20 +199,15 @@
     }
   }
 
-  // ── Marker icon ────────────────────────────────────────────────────────────
   function makeIcon(num) {
     return L.divIcon({
       className: '',
       html: '<div class="marker-label">' + num + '</div>',
-      iconSize: [26, 26],
-      iconAnchor: [13, 13],
-      popupAnchor: [0, -14]
+      iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -14]
     });
   }
 
-  // ── Build plain-text value for Jotform storage ─────────────────────────────
-  // Each location on its own line — clean and readable in Jotform Tables,
-  // emails, PDF exports, and the Jotform Inbox view.
+  // ── Build plain-text value ─────────────────────────────────────────────────
   function buildValue() {
     if (locations.length === 0) return '';
     return locations.map(function(l) {
@@ -334,28 +232,45 @@
     syncTimer = setTimeout(function(){ el.classList.add('hidden'); }, 3000);
   }
 
-  // ── Send value to Jotform ──────────────────────────────────────────────────
-  // Uses THREE methods simultaneously for maximum reliability:
-  // 1. JFCustomWidget.setValue()  — standard widget API
-  // 2. JFCustomWidget.sendSubmit() triggered via a stored callback
-  // 3. window.parent.postMessage  — direct fallback
+  // ── Write value into the Jotform form field ────────────────────────────────
+  // Uses 4 methods simultaneously — whichever one Jotform responds to wins.
   function sendToJotform() {
     var value = buildValue();
 
+    // Method 1: JFCustomWidget standard API
     try {
-      // Method 1: setValue (updates the field value in real time)
       if (typeof JFCustomWidget !== 'undefined') {
         JFCustomWidget.setValue(value);
       }
-    } catch(e) { console.warn('setValue failed:', e); }
+    } catch(e) {}
 
+    // Method 2: postMessage using Jotform's internal setFieldValue format
+    // Targets the field by its unique name (irjBe97)
     try {
-      // Method 3: postMessage fallback (works even outside widget context)
       window.parent.postMessage(JSON.stringify({
-        type: 'widgetEvent',
-        action: 'setValue',
-        value: value
+        action:    'setFieldValue',
+        fieldName:  TARGET_FIELD_NAME,
+        value:      value
       }), '*');
+    } catch(e) {}
+
+    // Method 3: postMessage using Jotform's input_ID format
+    try {
+      window.parent.postMessage(JSON.stringify({
+        action:  'setFieldValue',
+        fieldID: TARGET_FIELD_ID,
+        value:   value
+      }), '*');
+    } catch(e) {}
+
+    // Method 4: postMessage in the format Jotform's form listener expects
+    // for cross-iframe field updates
+    try {
+      window.parent.postMessage({
+        type:    'jotform-field-update',
+        fieldID: TARGET_FIELD_ID,
+        value:   value
+      }, '*');
     } catch(e) {}
 
     showSync();
@@ -369,46 +284,44 @@
 
     document.getElementById('loading-overlay').classList.add('active');
 
-    var url = 'https://nominatim.openstreetmap.org/reverse?format=json'
-            + '&lat=' + lat + '&lon=' + lng
-            + '&addressdetails=1&email=widget@example.com';
+    fetch(
+      'https://nominatim.openstreetmap.org/reverse?format=json' +
+      '&lat=' + lat + '&lon=' + lng +
+      '&addressdetails=1&email=widget@example.com',
+      { headers: { 'Accept-Language': 'hu' } }
+    )
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var a       = data.address || {};
+      var irsz    = a.postcode     || '';
+      var varos   = a.city || a.town || a.village || a.municipality || a.county || '';
+      var utca    = a.road         || '';
+      var hazszam = a.house_number || '';
 
-    fetch(url, { headers: { 'Accept-Language': 'hu' } })
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        var a       = data.address || {};
-        var irsz    = a.postcode     || '';
-        var varos   = a.city || a.town || a.village || a.municipality || a.county || '';
-        var utca    = a.road         || '';
-        var hazszam = a.house_number || '';
+      var marker = L.marker([lat, lng], { icon: makeIcon(id) })
+        .addTo(map)
+        .bindPopup(
+          '<b>' + id + '.</b> ' + (varos || '') +
+          (utca    ? ', ' + utca   : '') +
+          (hazszam ? ' ' + hazszam : '')
+        );
 
-        var marker = L.marker([lat, lng], { icon: makeIcon(id) })
-          .addTo(map)
-          .bindPopup(
-            '<b>' + id + '.</b> ' + (varos || '') +
-            (utca    ? ', ' + utca    : '') +
-            (hazszam ? ' ' + hazszam  : '')
-          );
-
-        locations.push({ id: id, lat: lat, lng: lng,
-                         irsz: irsz, varos: varos,
-                         utca: utca, hazszam: hazszam,
-                         marker: marker });
-        renderTable();
-        sendToJotform();
-      })
-      .catch(function(err){
-        console.error('Geocoding error:', err);
-        var marker = L.marker([lat, lng], { icon: makeIcon(id) }).addTo(map);
-        locations.push({ id: id, lat: lat, lng: lng,
-                         irsz: '', varos: '', utca: '',
-                         hazszam: '', marker: marker });
-        renderTable();
-        sendToJotform();
-      })
-      .finally(function(){
-        document.getElementById('loading-overlay').classList.remove('active');
-      });
+      locations.push({ id: id, lat: lat, lng: lng,
+                       irsz: irsz, varos: varos,
+                       utca: utca, hazszam: hazszam, marker: marker });
+      renderTable();
+      sendToJotform();
+    })
+    .catch(function(){
+      var marker = L.marker([lat, lng], { icon: makeIcon(id) }).addTo(map);
+      locations.push({ id: id, lat: lat, lng: lng,
+                       irsz: '', varos: '', utca: '', hazszam: '', marker: marker });
+      renderTable();
+      sendToJotform();
+    })
+    .finally(function(){
+      document.getElementById('loading-overlay').classList.remove('active');
+    });
   });
 
   // ── Render table ───────────────────────────────────────────────────────────
@@ -419,24 +332,23 @@
     tbody.innerHTML = '';
 
     if (locations.length === 0) {
-      var emptyTr = document.createElement('tr');
-      var emptyTd = document.createElement('td');
-      emptyTd.setAttribute('colspan', '6');
-      emptyTd.innerHTML =
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.setAttribute('colspan', '6');
+      td.innerHTML =
         '<div id="empty-state">' +
         '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
         '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>' +
         '<circle cx="12" cy="9" r="2.5"/></svg>' +
         'Még nem adott meg helyszínt. Kattintson a térképre!</div>';
-      emptyTr.appendChild(emptyTd);
-      tbody.appendChild(emptyTr);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
       resizeFrame();
       return;
     }
 
     locations.forEach(function(loc) {
       var tr = document.createElement('tr');
-
       var tdNum = document.createElement('td');
       tdNum.textContent = loc.id;
       tr.appendChild(tdNum);
@@ -453,7 +365,6 @@
         input.className = 'editable' +
           (f.key === 'hazszam' && !f.val ? ' missing' : '');
         input.value = f.val;
-
         input.addEventListener('input', function() {
           var locObj = locations.find(function(l){ return l.id === loc.id; });
           if (locObj) {
@@ -464,7 +375,6 @@
             sendToJotform();
           }
         });
-
         td.appendChild(input);
         tr.appendChild(td);
       });
@@ -474,7 +384,6 @@
       btn.className = 'btn-delete';
       btn.title     = 'Törlés';
       btn.innerHTML = '✕';
-
       btn.addEventListener('click', function() {
         var idx = locations.findIndex(function(l){ return l.id === loc.id; });
         if (idx !== -1) {
@@ -489,7 +398,6 @@
           sendToJotform();
         }
       });
-
       tdDel.appendChild(btn);
       tr.appendChild(tdDel);
       tbody.appendChild(tr);
@@ -500,29 +408,22 @@
 
   // ── JFCustomWidget lifecycle ───────────────────────────────────────────────
   if (typeof JFCustomWidget !== 'undefined') {
-
-    // 'ready' fires when Jotform has fully initialised the widget iframe
     JFCustomWidget.subscribe('ready', function() {
-      widgetReady = true;
       setTimeout(function(){
         map.invalidateSize();
         resizeFrame();
       }, 300);
     });
 
-    // 'submit' fires when the user clicks the form's Submit button.
-    // This is the CRITICAL event — sendSubmit() is what actually stores
-    // the value in the Jotform database.
+    // CRITICAL: sendSubmit fires on form submit and stores the value
     JFCustomWidget.subscribe('submit', function() {
-      var value = buildValue();
       JFCustomWidget.sendSubmit({
-        valid: true,          // mark field as valid (no blocking)
-        value: value          // the plain-text string saved to Jotform
+        valid: true,
+        value: buildValue()
       });
     });
   }
 
-  // ── Fallback init ──────────────────────────────────────────────────────────
   window.addEventListener('load', function() {
     setTimeout(function(){
       map.invalidateSize();
